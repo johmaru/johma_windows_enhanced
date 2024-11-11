@@ -1,0 +1,8 @@
+[package]
+name = "johma_windows_enhanced"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
+sysinfo = "0.32.0"
