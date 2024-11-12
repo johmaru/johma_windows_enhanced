@@ -1,3 +1,4 @@
+mod libs;
 use clap::{Parser, Subcommand};
 use std::{env::consts::OS, fs};
 use sysinfo::{Components, Disks, Networks, System};
@@ -15,6 +16,10 @@ enum Commands {
         about = "Show memory information",
         long_about = "Show memory information"
     )]
+    CPU {
+        #[command(subcommand)]
+        action: Option<CPUCommands>,
+    },
     Mem {
         #[command(subcommand)]
         action: Option<MemShowCommands>,
@@ -22,6 +27,19 @@ enum Commands {
     Ls {
         #[arg(long)]
         action: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum CPUCommands {
+    #[command(about = "Show CPU information", long_about = "Show CPU information")]
+    Show {
+        #[arg(short, long, help = "Show CPU information")]
+        all: bool,
+        #[arg(short, long, help = "Show CPU usage information")]
+        usage: bool,
+        #[arg(short, long, help = "Show CPU temperature information")]
+        frequency: bool,
     },
 }
 
@@ -45,6 +63,8 @@ enum MemShowCommands {
 fn main() {
     let args = Args::parse();
 
+    libs::logger_control::initialize();
+
     match OS {
         "windows" => {
             windows_cmd(args);
@@ -57,6 +77,37 @@ fn main() {
 
 fn windows_cmd(args: Args) {
     match &args.command {
+        Some(Commands::CPU { action }) => {
+            let mut sys = System::new_all();
+            sys.refresh_all();
+            match action {
+                Some(CPUCommands::Show {
+                    all,
+                    usage,
+                    frequency,
+                }) => {
+                    if *all {
+                        for cpu in sys.cpus() {
+                            println!("{}", cpu.name());
+                        }
+                    }
+                    if *usage {
+                        for cpu in sys.cpus() {
+                            println!("{}", cpu.cpu_usage());
+                        }
+                    }
+                    if *frequency {
+                        for cpu in sys.cpus() {
+                            println!("{}", cpu.frequency());
+                        }
+                    }
+                }
+                None => {
+                    println!("No action specified for CPU command");
+                }
+            }
+        }
+
         Some(Commands::Mem { action }) => {
             let mut sys = System::new_all();
             sys.refresh_all();
