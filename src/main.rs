@@ -1,6 +1,10 @@
 mod libs;
 use clap::{Parser, Subcommand};
-use std::{env::consts::OS, fs};
+use libs::{logger_control, win_api};
+use std::{
+    env::consts::OS,
+    fs::{self, File},
+};
 use sysinfo::{Components, Disks, Networks, System};
 use tabled::{builder::Builder, settings::Style};
 
@@ -56,7 +60,7 @@ enum MemShowCommands {
         free: bool,
         #[arg(short, long, help = "Show used memory information")]
         used: bool,
-        #[arg(short, long, help = "Show available memory information")]
+        #[arg(short = 'v', long, help = "Show available memory information")]
         available: bool,
     },
 }
@@ -65,12 +69,16 @@ fn main() {
 
     libs::logger_control::initialize();
 
+    logger_control::log("Starting program", logger_control::LogLevel::INFO);
+
     match OS {
         "windows" => {
             windows_cmd(args);
+            logger_control::log("Program finished", logger_control::LogLevel::INFO);
         }
         _ => {
             println!("Unsupported OS");
+            logger_control::log("Unsupported OS", logger_control::LogLevel::ERROR);
         }
     }
 }
@@ -89,21 +97,37 @@ fn windows_cmd(args: Args) {
                     if *all {
                         for cpu in sys.cpus() {
                             println!("{}", cpu.name());
+                            logger_control::log(
+                                &format!("CPU name all called {}", cpu.name()),
+                                logger_control::LogLevel::INFO,
+                            );
                         }
                     }
                     if *usage {
                         for cpu in sys.cpus() {
                             println!("{}", cpu.cpu_usage());
+                            logger_control::log(
+                                &format!("CPU usage usage called {}", cpu.cpu_usage()),
+                                logger_control::LogLevel::INFO,
+                            );
                         }
                     }
                     if *frequency {
                         for cpu in sys.cpus() {
                             println!("{}", cpu.frequency());
+                            logger_control::log(
+                                &format!("CPU frequency frequency called {}", cpu.frequency()),
+                                logger_control::LogLevel::INFO,
+                            );
                         }
                     }
                 }
                 None => {
                     println!("No action specified for CPU command");
+                    logger_control::log(
+                        "No action specified for CPU command",
+                        logger_control::LogLevel::ERROR,
+                    );
                 }
             }
         }
@@ -121,22 +145,42 @@ fn windows_cmd(args: Args) {
                     if *all {
                         let total_memory = sys.total_memory();
                         println!("Total Memory: {} GB", bytes_to_gb(total_memory));
+                        logger_control::log(
+                            &format!("Total memory all called {}", total_memory),
+                            logger_control::LogLevel::INFO,
+                        );
                     }
                     if *free {
                         let free_memory = sys.free_memory();
                         println!("Free Memory: {} GB", bytes_to_gb(free_memory));
+                        logger_control::log(
+                            &format!("Free memory free called {}", free_memory),
+                            logger_control::LogLevel::INFO,
+                        );
                     }
                     if *used {
                         let used_memory = sys.used_memory();
                         println!("Used Memory: {} GB", bytes_to_gb(used_memory));
+                        logger_control::log(
+                            &format!("Used memory used called {}", used_memory),
+                            logger_control::LogLevel::INFO,
+                        );
                     }
                     if *available {
                         let available_memory = sys.available_memory();
                         println!("Available Memory: {} GB", bytes_to_gb(available_memory));
+                        logger_control::log(
+                            &format!("Available memory available called {}", available_memory),
+                            logger_control::LogLevel::INFO,
+                        );
                     }
                 }
                 None => {
                     println!("No action specified for Mem command");
+                    logger_control::log(
+                        "No action specified for Mem command",
+                        logger_control::LogLevel::ERROR,
+                    );
                 }
             }
         }
@@ -158,13 +202,16 @@ fn windows_cmd(args: Args) {
                 let mut table = builder.build();
                 table.with(Style::ascii_rounded());
                 println!("{}", table.to_string());
+                logger_control::log("Ls command called", logger_control::LogLevel::INFO);
             }
             Err(e) => {
                 println!("Error: {}", e);
+                logger_control::log(&format!("Error: {}", e), logger_control::LogLevel::ERROR);
             }
         },
         None => {
             println!("No subcommand was used");
+            logger_control::log("No subcommand was used", logger_control::LogLevel::ERROR);
         }
     }
 }
