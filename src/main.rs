@@ -1,6 +1,6 @@
 mod libs;
 use clap::{Parser, Subcommand};
-use libs::{logger_control, win_api};
+use libs::{data_controller, logger_control, win_api};
 use std::{
     env::consts::OS,
     fs::{self, File},
@@ -70,6 +70,8 @@ fn main() {
     libs::logger_control::initialize();
 
     logger_control::log("Starting program", logger_control::LogLevel::INFO);
+
+    data_controller::init_settings();
 
     match OS {
         "windows" => {
