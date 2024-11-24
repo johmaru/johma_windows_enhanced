@@ -82,12 +82,17 @@ enum BrowserCommands {
     Show {
         #[arg(short, long, help = "Show browser information")]
         all: bool,
-        #[arg(long, help = "Set Browser")]
+        #[arg(long, help = "Set Browser : Example: --set c:/path/to/browser.exe")]
         set: Option<String>,
         #[arg(long, help = "reset Browser")]
         reset: bool,
         #[arg(long, help = "Set Search Engine")]
         set_search: bool,
+    },
+    #[command(about = "Search in browser", long_about = "Search in browser")]
+    Search {
+        #[arg(value_name = "QUERY")]
+        query: String,
     },
 }
 fn main() {
@@ -326,6 +331,14 @@ fn windows_cmd(args: Args) {
                     logger_control::log(
                         "No action specified for Browser command",
                         logger_control::LogLevel::ERROR,
+                    );
+                }
+                Some(BrowserCommands::Search { query }) => {
+                    let settings = data_controller::read_settings();
+                    libs::browser_controller::search_in_browser(query, &settings.web_search);
+                    logger_control::log(
+                        &format!("Browser search search called {}", query),
+                        logger_control::LogLevel::INFO,
                     );
                 }
             }
