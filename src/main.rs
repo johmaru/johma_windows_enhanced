@@ -40,6 +40,10 @@ enum Commands {
         #[command(subcommand)]
         action: Option<BrowserCommands>,
     },
+    Open {
+        #[command(subcommand)]
+        action: Option<OpenCommands>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -94,6 +98,19 @@ enum BrowserCommands {
         #[arg(value_name = "QUERY")]
         query: String,
     },
+}
+
+#[derive(Subcommand)]
+
+enum OpenCommands {
+    #[command(about = "Open a file", long_about = "Open a file")]
+    Appdata {
+        #[arg(long, help = "Open Appdata")]
+        user: Option<String>,
+    },
+    Local,
+    There,
+    AllSid,
 }
 fn main() {
     let args = Args::parse();
@@ -333,12 +350,97 @@ fn windows_cmd(args: Args) {
                         logger_control::LogLevel::ERROR,
                     );
                 }
+
                 Some(BrowserCommands::Search { query }) => {
                     let settings = data_controller::read_settings();
                     libs::browser_controller::search_in_browser(query, &settings.web_search);
                     logger_control::log(
                         &format!("Browser search search called {}", query),
                         logger_control::LogLevel::INFO,
+                    );
+                }
+            }
+        }
+        Some(Commands::Open { action }) => {
+            let appdata_content = win_api::get_appdata();
+            match action {
+                Some(OpenCommands::Appdata { user }) => {
+                    if let Some(appdata_content) = appdata_content {
+                        if user.clone().unwrap().len() > 0 {
+                            if let Err(e) = win_api::open_explorer(appdata_content) {
+                                println!("Failed to open Appdata: {}", e);
+                                logger_control::log(
+                                    &format!("Failed to open Appdata: {}", e),
+                                    logger_control::LogLevel::ERROR,
+                                );
+                            }
+                        } else {
+                            if let Err(e) = win_api::open_explorer(appdata_content.join("Local")) {
+                                println!("Failed to open Local Appdata: {}", e);
+                                logger_control::log(
+                                    &format!("Failed to open Local Appdata: {}", e),
+                                    logger_control::LogLevel::ERROR,
+                                );
+                            }
+                        }
+                    } else {
+                        println!("Failed to get Appdata directory");
+                        logger_control::log(
+                            "Failed to get Appdata directory",
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
+                Some(OpenCommands::Local) => {
+                    let local_appdata = win_api::get_local_appdata();
+                    if let Some(local_appdata) = local_appdata {
+                        if let Err(e) = win_api::open_explorer(local_appdata) {
+                            println!("Failed to open Local Appdata: {}", e);
+                            logger_control::log(
+                                &format!("Failed to open Local Appdata: {}", e),
+                                logger_control::LogLevel::ERROR,
+                            );
+                        }
+                    } else {
+                        println!("Failed to get Appdata directory");
+                        logger_control::log(
+                            "Failed to get Appdata directory",
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
+                Some(OpenCommands::There) => {
+                    if let Err(e) = win_api::open_explorer(".") {
+                        println!("Failed to open current directory: {}", e);
+                        logger_control::log(
+                            &format!("Failed to open current directory: {}", e),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
+                Some(OpenCommands::AllSid) => match win_api::get_all_user_sids() {
+                    Ok(sids) => {
+                        for sid in sids {
+                            println!("{}", sid);
+                        }
+                    }
+                    Err(e) => {
+                        println!("Failed to get all SIDs: {}", e);
+                        logger_control::log(
+                            &format!("Failed to get all SIDs: {}", e),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                },
+
+                None => {
+                    println!("No action specified for Open command");
+                    logger_control::log(
+                        "No action specified for Open command",
+                        logger_control::LogLevel::ERROR,
                     );
                 }
             }
