@@ -4,9 +4,13 @@ use libs::{data_controller, logger_control, win_api};
 use std::{
     env::consts::OS,
     fs::{self, File},
+    io::{self, Write},
 };
 use sysinfo::{Components, Disks, Networks, System};
 use tabled::{builder::Builder, settings::Style};
+
+// プリプロセッサー
+const VERISON: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser)]
 #[command(version, long_about = None)]
@@ -17,8 +21,8 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     #[command(
-        about = "Show memory information",
-        long_about = "Show memory information"
+        about = "Show command line information",
+        long_about = "Show command line information"
     )]
     CPU {
         #[command(subcommand)]
@@ -31,6 +35,10 @@ enum Commands {
     Ls {
         #[arg(long)]
         action: bool,
+    },
+    Browser {
+        #[command(subcommand)]
+        action: Option<BrowserCommands>,
     },
 }
 
@@ -64,6 +72,24 @@ enum MemShowCommands {
         available: bool,
     },
 }
+
+#[derive(Subcommand)]
+enum BrowserCommands {
+    #[command(
+        about = "Show browser information",
+        long_about = "Show browser information"
+    )]
+    Show {
+        #[arg(short, long, help = "Show browser information")]
+        all: bool,
+        #[arg(long, help = "Set Browser")]
+        set: Option<String>,
+        #[arg(long, help = "reset Browser")]
+        reset: bool,
+        #[arg(long, help = "Set Search Engine")]
+        set_search: bool,
+    },
+}
 fn main() {
     let args = Args::parse();
 
@@ -72,6 +98,8 @@ fn main() {
     logger_control::log("Starting program", logger_control::LogLevel::INFO);
 
     data_controller::init_settings();
+
+    data_controller::null_search_settings();
 
     match OS {
         "windows" => {
@@ -214,6 +242,93 @@ fn windows_cmd(args: Args) {
         None => {
             println!("No subcommand was used");
             logger_control::log("No subcommand was used", logger_control::LogLevel::ERROR);
+        }
+
+        Some(Commands::Browser { action }) => {
+            let settings = data_controller::read_settings();
+            match action {
+                Some(BrowserCommands::Show {
+                    all,
+                    set,
+                    reset,
+                    set_search,
+                }) => {
+                    if *all {
+                        println!("Browser: {}", settings.browser);
+                        logger_control::log(
+                            &format!("Browser all called {}", settings.browser),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+
+                    if let Some(set) = set {
+                        let new_settings = data_controller::Settings {
+                            version: settings.version.clone(),
+                            browser: set.to_string(),
+                            web_search: settings.web_search.clone(),
+                        };
+                        data_controller::write_settings(new_settings);
+                        logger_control::log(
+                            &format!("Browser set set called {}", set),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+
+                    if *reset {
+                        let new_settings = data_controller::Settings {
+                            version: settings.version.clone(),
+                            browser: "Default".to_string(),
+                            web_search: settings.web_search.clone(),
+                        };
+                        data_controller::write_settings(new_settings);
+                        logger_control::log(
+                            &format!("Browser reset reset called"),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+
+                    if *set_search {
+                        println!("Please enter the search engine you would like to use");
+                        println!("Options: 1:DuckDuckGo 2:Google");
+                        let mut input = String::new();
+
+                        print!("Enter your choice: ");
+                        io::stdout().flush().unwrap();
+
+                        io::stdin()
+                            .read_line(&mut input)
+                            .expect("Failed to read line");
+
+                        let input = input.trim();
+
+                        let new_settings = data_controller::Settings {
+                            version: settings.version.clone(),
+                            browser: settings.browser.clone(),
+                            web_search: match input {
+                                "1" => "DuckDuckGo".to_string(),
+                                "2" => "Google".to_string(),
+                                _ => {
+                                    println!("Invalid input, defaulting to DuckDuckGo");
+                                    "DuckDuckGo".to_string()
+                                }
+                            },
+                        };
+
+                        data_controller::write_settings(new_settings);
+                        logger_control::log(
+                            &format!("Browser set_search set_search called {}", input),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+                }
+                None => {
+                    println!("No action specified for Browser command");
+                    logger_control::log(
+                        "No action specified for Browser command",
+                        logger_control::LogLevel::ERROR,
+                    );
+                }
+            }
         }
     }
 }

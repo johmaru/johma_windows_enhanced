@@ -4,12 +4,15 @@ use dirs;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::VERISON;
+
 use super::logger_control;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Settings {
     pub version: String,
     pub browser: String,
+    pub web_search: String,
 }
 
 pub fn read_settings() -> Settings {
@@ -24,6 +27,34 @@ pub fn read_settings() -> Settings {
     toml::from_str(&contents).expect("Failed to parse settings file")
 }
 
+pub fn null_search_settings() {
+    let settings = read_settings();
+
+    if settings.version == "" {
+        let new_settings = Settings {
+            version: VERISON.to_string(),
+            browser: settings.browser,
+            web_search: settings.web_search,
+        };
+
+        write_settings(new_settings);
+    } else if settings.browser == "" {
+        let new_settings = Settings {
+            version: settings.version,
+            browser: "Default".to_string(),
+            web_search: settings.web_search,
+        };
+        write_settings(new_settings);
+    } else if settings.web_search == "" {
+        let new_settings = Settings {
+            version: settings.version,
+            browser: settings.browser,
+            web_search: "DuckDuckGo".to_string(),
+        };
+        write_settings(new_settings);
+    }
+}
+
 pub fn init_settings() {
     let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
 
@@ -33,8 +64,9 @@ pub fn init_settings() {
 
     if !setting_loc.exists() {
         let settings = Settings {
-            version: "0.1.0".to_string(),
+            version: VERISON.to_string(),
             browser: "Default".to_string(),
+            web_search: "DuckDuckGo".to_string(),
         };
 
         let toml = toml::to_string(&settings).expect("Failed to serialize settings");
