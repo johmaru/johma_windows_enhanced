@@ -1,7 +1,8 @@
 mod libs;
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 use libs::{data_controller, logger_control, win_api};
 use std::{
+    collections::HashMap,
     env::consts::OS,
     fs::{self, File},
     io::{self, Write},
@@ -98,6 +99,17 @@ enum BrowserCommands {
         #[arg(value_name = "QUERY")]
         query: String,
     },
+    #[command(about = "Web Favorite", long_about = "Web Favorite")]
+    Favorite {
+        #[arg(long, short, help = "Add a favorite URL")]
+        add_favorite: bool,
+        #[arg(long, short, help = "Remove a favorite URL")]
+        remove_favorite: bool,
+        #[arg(long, short, help = "List all favorite URLs")]
+        list_favorite: bool,
+        #[arg(long, short, help = "Open a favorite URL")]
+        open_favorite: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -137,6 +149,7 @@ fn main() {
 
 fn windows_cmd(args: Args) {
     match &args.command {
+        // cpu command
         Some(Commands::CPU { action }) => {
             let mut sys = System::new_all();
             sys.refresh_all();
@@ -184,6 +197,7 @@ fn windows_cmd(args: Args) {
             }
         }
 
+        // mem command
         Some(Commands::Mem { action }) => {
             let mut sys = System::new_all();
             sys.refresh_all();
@@ -236,6 +250,8 @@ fn windows_cmd(args: Args) {
                 }
             }
         }
+
+        // ls command
         Some(Commands::Ls { action }) => match fs::read_dir(".") {
             Ok(entries) => {
                 let mut builder = Builder::default();
@@ -266,6 +282,7 @@ fn windows_cmd(args: Args) {
             logger_control::log("No subcommand was used", logger_control::LogLevel::ERROR);
         }
 
+        // browser command
         Some(Commands::Browser { action }) => {
             let settings = data_controller::read_settings();
             match action {
@@ -351,6 +368,121 @@ fn windows_cmd(args: Args) {
                     );
                 }
 
+                Some(BrowserCommands::Favorite {
+                    add_favorite,
+                    remove_favorite,
+                    list_favorite,
+                    open_favorite,
+                }) => {
+                    if *add_favorite {
+                        data_controller::init_favorites();
+
+                        let mut favorites = data_controller::read_favorites();
+                        println!("Please enter the name of the favorite URL");
+                        let mut name = String::new();
+                        print!("Enter the name: ");
+                        io::stdout().flush().unwrap();
+                        io::stdin()
+                            .read_line(&mut name)
+                            .expect("Failed to read line");
+                        let name = name.trim();
+
+                        println!("Please enter the URL");
+                        let mut url = String::new();
+                        print!("Enter the URL: ");
+                        io::stdout().flush().unwrap();
+                        io::stdin()
+                            .read_line(&mut url)
+                            .expect("Failed to read line");
+                        let url = url.trim();
+
+                        favorites
+                            .favorites
+                            .insert(name.to_string(), url.to_string());
+                        data_controller::write_favorites(favorites);
+                        logger_control::log(
+                            &format!("Browser favorite favorite called {}", name),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+                    if *remove_favorite {
+                        let favorites = data_controller::read_favorites();
+                        let mut favorites_map = favorites.favorites;
+                        let mut keys: Vec<String> = Vec::new();
+                        for key in favorites_map.keys() {
+                            keys.push(key.to_string());
+                        }
+                        let mut builder = Builder::default();
+                        builder.push_record(keys);
+                        let mut table = builder.build();
+                        table.with(Style::ascii_rounded());
+                        println!("{}", table.to_string());
+
+                        println!(
+                            "Please enter the name of the favorite URL you would like to remove"
+                        );
+                        let mut name = String::new();
+                        print!("Enter the name: ");
+                        io::stdout().flush().unwrap();
+                        io::stdin()
+                            .read_line(&mut name)
+                            .expect("Failed to read line");
+                        let name = name.trim();
+
+                        favorites_map.remove(name);
+                        let new_favorites = data_controller::Favorites {
+                            favorites: favorites_map,
+                        };
+                        data_controller::write_favorites(new_favorites);
+                        logger_control::log(
+                            &format!("Browser favorite remove_favorite called {}", name),
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+
+                    if *list_favorite {
+                        let favorites = data_controller::read_favorites();
+                        let favorites_map = favorites.favorites;
+                        let mut keys: Vec<String> = Vec::new();
+                        for key in favorites_map.keys() {
+                            keys.push(key.to_string());
+                        }
+                        let mut builder = Builder::default();
+                        builder.push_record(keys);
+                        let mut table = builder.build();
+                        table.with(Style::ascii_rounded());
+                        println!("{}", table.to_string());
+                        logger_control::log(
+                            "Browser favorite list_favorite called",
+                            logger_control::LogLevel::INFO,
+                        );
+                    }
+
+                    if let Some(oepn_favorite) = open_favorite {
+                        let favorites = data_controller::read_favorites();
+                        let favorites_map = favorites.favorites;
+                        if let Some(favorite_url) = favorites_map.get(oepn_favorite) {
+                            libs::browser_controller::search_in_browser(
+                                &favorite_url,
+                                &settings.web_search,
+                            );
+                            logger_control::log(
+                                &format!(
+                                    "Browser favorite open_favorite open_favorite called {}",
+                                    oepn_favorite
+                                ),
+                                logger_control::LogLevel::INFO,
+                            );
+                        } else {
+                            println!("Favorite URL not found");
+                            logger_control::log(
+                                "Favorite URL not found",
+                                logger_control::LogLevel::ERROR,
+                            );
+                        }
+                    }
+                }
+
                 Some(BrowserCommands::Search { query }) => {
                     let settings = data_controller::read_settings();
                     libs::browser_controller::search_in_browser(query, &settings.web_search);
@@ -361,6 +493,8 @@ fn windows_cmd(args: Args) {
                 }
             }
         }
+
+        // open command
         Some(Commands::Open { action }) => {
             let appdata_content = win_api::get_appdata();
             match action {

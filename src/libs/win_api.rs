@@ -119,6 +119,29 @@ pub fn get_local_appdata() -> Option<PathBuf> {
     }
 }
 
+// This function is not used in the current implementation and to begin with make a get user function
+pub fn get_local_appdata_with_token(htoken: *mut winapi::ctypes::c_void) -> Option<PathBuf> {
+    let mut path: [u16; 260] = [0; 260];
+
+    unsafe {
+        let result = SHGetFolderPathW(
+            ptr::null_mut(),
+            CSIDL_LOCAL_APPDATA,
+            htoken,
+            0,
+            path.as_mut_ptr() as PWSTR,
+        );
+
+        if result >= 0 {
+            let len = path.iter().take_while(|&&c| c != 0).count();
+            let os_str: OsString = std::os::windows::ffi::OsStringExt::from_wide(&path[..len]);
+            Some(PathBuf::from(os_str))
+        } else {
+            None
+        }
+    }
+}
+
 pub fn get_appdata() -> Option<PathBuf> {
     let mut path: [u16; 260] = [0; 260];
 

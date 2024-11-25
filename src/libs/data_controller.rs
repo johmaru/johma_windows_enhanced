@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 
 use dirs;
@@ -13,6 +14,63 @@ pub struct Settings {
     pub version: String,
     pub browser: String,
     pub web_search: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Favorites {
+    pub favorites: HashMap<String, String>,
+}
+
+pub fn read_favorites() -> Favorites {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let favorites_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("favorites.toml");
+
+    let contents =
+        fs::read_to_string(favorites_loc).expect("Something went wrong reading the file");
+
+    toml::from_str(&contents).expect("Failed to parse favorites file")
+}
+
+pub fn init_favorites() {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let favorites_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("favorites.toml");
+
+    if !favorites_loc.exists() {
+        let favorites = Favorites {
+            favorites: HashMap::new(),
+        };
+
+        let toml = toml::to_string(&favorites).expect("Failed to serialize favorites");
+
+        fs::write(favorites_loc, toml).expect("Failed to write favorites file");
+
+        logger_control::log("Create new favorites file", logger_control::LogLevel::INFO);
+    }
+
+    logger_control::log(
+        "Favorites file already exists",
+        logger_control::LogLevel::INFO,
+    );
+}
+
+pub fn write_favorites(favorites: Favorites) {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let favorites_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("favorites.toml");
+
+    let toml = toml::to_string(&favorites).expect("Failed to serialize favorites");
+
+    fs::write(favorites_loc, toml).expect("Failed to write favorites file");
+
+    logger_control::log("Write favorites file", logger_control::LogLevel::INFO);
 }
 
 pub fn read_settings() -> Settings {
