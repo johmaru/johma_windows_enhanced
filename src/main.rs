@@ -45,6 +45,18 @@ enum Commands {
         #[command(subcommand)]
         action: Option<OpenCommands>,
     },
+    Remove {
+        #[arg(short, long, help = "Remove a file")]
+        remove: Option<String>,
+    },
+    Update {
+        #[arg(short, long, help = "Update the program")]
+        update: bool,
+    },
+    Version {
+        #[arg(short, long, help = "Show the version of the program")]
+        version: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -577,6 +589,38 @@ fn windows_cmd(args: Args) {
                         logger_control::LogLevel::ERROR,
                     );
                 }
+            }
+        }
+
+        // remove command
+        Some(Commands::Remove { remove }) => {
+            if let Some(remove) = remove {
+                if let Err(e) = fs::remove_file(remove) {
+                    println!("Failed to remove file: {}", e);
+                    logger_control::log(
+                        &format!("Failed to remove file: {}", e),
+                        logger_control::LogLevel::ERROR,
+                    );
+                }
+            }
+        }
+
+        // update command
+        Some(Commands::Update { update }) => {
+            if *update {
+                // use velopack as library
+                print!("Updating program");
+            }
+        }
+
+        // version command
+        Some(Commands::Version { version }) => {
+            if *version {
+                println!("Version: {}", VERISON);
+                logger_control::log(
+                    &format!("Version version called {}", VERISON),
+                    logger_control::LogLevel::INFO,
+                );
             }
         }
     }
