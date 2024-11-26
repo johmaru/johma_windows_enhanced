@@ -53,10 +53,12 @@ enum Commands {
         #[arg(short, long, help = "Update the program")]
         update: bool,
     },
-    Version {
-        #[arg(short, long, help = "Show the version of the program")]
-        version: bool,
+    explorer {
+        #[arg(short, long, help = "Open explorer")]
+        reflesh: bool,
     },
+
+    Version,
 }
 
 #[derive(Subcommand)]
@@ -69,6 +71,8 @@ enum CPUCommands {
         usage: bool,
         #[arg(short, long, help = "Show CPU temperature information")]
         frequency: bool,
+        #[arg(long, help = "all pid")]
+        all_pid: bool,
     },
 }
 
@@ -127,12 +131,13 @@ enum BrowserCommands {
 #[derive(Subcommand)]
 
 enum OpenCommands {
-    #[command(about = "Open a file", long_about = "Open a file")]
+    #[command(about = "Open a file and app", long_about = "Open a file file and app")]
     Appdata {
         #[arg(long, help = "Open Appdata")]
         user: Option<String>,
     },
     Local,
+    TaskManager,
     There,
     AllSid,
 }
@@ -170,6 +175,7 @@ fn windows_cmd(args: Args) {
                     all,
                     usage,
                     frequency,
+                    all_pid,
                 }) => {
                     if *all {
                         for cpu in sys.cpus() {
@@ -197,6 +203,9 @@ fn windows_cmd(args: Args) {
                                 logger_control::LogLevel::INFO,
                             );
                         }
+                    }
+                    if *all_pid {
+                        win_api::show_all_pid();
                     }
                 }
                 None => {
@@ -557,6 +566,16 @@ fn windows_cmd(args: Args) {
                     }
                 }
 
+                Some(OpenCommands::TaskManager) => {
+                    if let Err(e) = win_api::open_task_manager() {
+                        println!("Failed to open Task Manager: {}", e);
+                        logger_control::log(
+                            &format!("Failed to open Task Manager: {}", e),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
                 Some(OpenCommands::There) => {
                     if let Err(e) = win_api::open_explorer(".") {
                         println!("Failed to open current directory: {}", e);
@@ -614,13 +633,19 @@ fn windows_cmd(args: Args) {
         }
 
         // version command
-        Some(Commands::Version { version }) => {
-            if *version {
-                println!("Version: {}", VERISON);
-                logger_control::log(
-                    &format!("Version version called {}", VERISON),
-                    logger_control::LogLevel::INFO,
-                );
+        Some(Commands::Version) => {
+            println!("Version: {}", VERISON);
+            logger_control::log(
+                &format!("Version version called {}", VERISON),
+                logger_control::LogLevel::INFO,
+            );
+        }
+
+        // explorer command
+        Some(Commands::explorer { reflesh }) => {
+            if *reflesh {
+                let _ = win_api::refresh_exprorer();
+                logger_control::log("Explorer reflesh called", logger_control::LogLevel::INFO);
             }
         }
     }

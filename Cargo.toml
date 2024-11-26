@@ -1,5 +1,5 @@
 [package]
-name = "johma_windows_enhanced"
+name = "jwe"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ chrono = "0.4.38"
 clap = { version = "4.5.20", features = ["derive"] }
 dirs = "5.0.1"
 once_cell = "1.20.2"
-sysinfo = "0.32.0"
+sysinfo = { version = "0.32.0", features = ["system"] }
 tabled = "0.16.0"
 serde = { version = "1.0.215", features = ["derive"] }
 winapi = { version = "0.3.9", features = [
@@ -24,7 +24,8 @@ winapi = { version = "0.3.9", features = [
 toml = "0.8.19"
 open = "5.3.1"
 urlencoding = "2.1.3"
+windows-sys = { version = "0.59.0", features = ["Win32_System_ProcessStatus"] }
+windows = { version = "0.58.0", features = ["Win32", "Win32_System", "Win32_System_WindowsProgramming"] }
 
-[[bin]]
-name = "jwe"
-path = "src/main.rs"
+[build-dependencies]
+cc = "1.2.1"

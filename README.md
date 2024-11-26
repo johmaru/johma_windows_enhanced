@@ -48,3 +48,9 @@ These commands are incomplete
 - ```Local```
 - ```There```
 - ```all-sid```
+
+### Version Command
+ - Does not have any arguments
+
+### Explorer Command
+- ```reflesh```

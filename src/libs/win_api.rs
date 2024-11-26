@@ -3,22 +3,32 @@ use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
 use std::ptr;
+use std::ptr::null_mut;
 use winapi::shared::lmcons::NET_API_STATUS;
-use winapi::shared::minwindef::{DWORD, LPBYTE};
-use winapi::shared::ntdef::NULL;
+use winapi::shared::minwindef::{DWORD, HINSTANCE, LPBYTE};
 use winapi::shared::ntdef::PWSTR;
 use winapi::shared::sddl::ConvertSidToStringSidW;
+use winapi::um::handleapi::CloseHandle;
+use winapi::um::libloaderapi::GetModuleFileNameW;
 use winapi::um::lmaccess::{NetUserEnum, USER_INFO_0};
 use winapi::um::lmapibuf::NetApiBufferFree;
-use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcessToken};
-use winapi::um::securitybaseapi::GetTokenInformation;
+use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcess, OpenProcessToken};
 use winapi::um::shlobj::{SHGetFolderPathW, CSIDL_APPDATA, CSIDL_LOCAL_APPDATA};
 use winapi::um::winbase::LocalFree;
 use winapi::um::winbase::LookupAccountNameW;
-use winapi::um::winbase::LookupAccountSidW;
-use winapi::um::winnt::{TokenUser, HANDLE, PSID, SID_NAME_USE, TOKEN_QUERY};
+use winapi::um::winnt::{
+    TokenUser, HANDLE, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ, PSID, SID_NAME_USE, TOKEN_QUERY,
+};
+use windows_sys::Win32::System::ProcessStatus::GetModuleBaseNameW;
 
 use crate::libs::logger_control;
+
+#[link(name = "win_sys_api", kind = "static")]
+extern "C" {
+    fn restart_explorer();
+    fn list_all_pids() -> *mut DWORD;
+    fn free_pids(pids: *mut DWORD);
+}
 
 pub fn get_all_user_sids() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     unsafe {
@@ -184,4 +194,35 @@ where
         logger_control::LogLevel::INFO,
     );
     Ok(())
+}
+
+pub fn open_task_manager() -> Result<(), Box<dyn std::error::Error>> {
+    if let Err(e) = open::that("taskmgr") {
+        eprintln!("Failed to open task manager: {}", e);
+        logger_control::log(
+            &format!("Failed to open task manager: {}", e),
+            logger_control::LogLevel::CRITICAL,
+        );
+    }
+    logger_control::log("Opened task manager", logger_control::LogLevel::INFO);
+    Ok(())
+}
+
+pub fn refresh_exprorer() -> Result<(), Box<dyn std::error::Error>> {
+    unsafe {
+        restart_explorer();
+    }
+    logger_control::log("Refreshed explorer", logger_control::LogLevel::INFO);
+    Ok(())
+}
+
+pub fn show_all_pid() {
+    unsafe {
+        let pids = list_all_pids();
+        if pids.is_null() {
+            eprintln!("Failed to get PIDs: list_all_pids returned NULL");
+            return;
+        }
+        free_pids(pids);
+    }
 }
