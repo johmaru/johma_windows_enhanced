@@ -12,45 +12,60 @@ These commands are incomplete
 
 ### CPU Command
 
-- ```Show```
-  - all(short -a)
-  - usage(short -u)
-  - frequency(short -f)
+- ```jwe cpu <option>```
+  - --all(short -a)
+  - --usage(short -u)
+  - --frequency(short -f)
+  - --all-pid
 
 ### Memory Command
 
-- ```Show```
-    - all(short -a)
-    - free(short -f)
-    - used(short -u)
-    - available(short -v)
+- ```jwe mem show <option>```
+    - --all(short -a)
+    - --free(short -f)
+    - --used(short -u)
+    - --available(short -v)
 
 ### LS Command
 
-- ```ls```
+- ```jwe ls```
 
 ### Browser Command
 
-- ```Show```
-  - all(short -a)
-  - set
-  - reset
-  - set-search
-  - favorite
-    - add-favorite(short -a)
-    - remove-favorite(short -r)
-    - list-favorite(short -l)
-    - open-favorite (favorite-content) (short -o)
-- ```Search <URL>``` 
+- ```jwe browser show <option>```
+  - --all(short -a)
+  - --set
+  - --reset
+  - --set-search
+- ```jwe browser fav <option>```
+  - --add-favorite(short -a)
+  - --remove-favorite(short -r)
+  - --list-favorite(short -l)
+  - --open-favorite (content) (short -o)  
+- ```jwe browser search <message>``` 
 
 ### Open Command
-- ```Appdata```
-- ```Local```
-- ```There```
-- ```all-sid```
+- ```jwe open <command>```
+  - ```taskm```
+  - ```env```
+  - ```Appdata```
+  - ```Local```
+  - ```local-low```
+  - ```roaming```
+  - ```There```
+  - ```all-sid```
+
+### Remove Command
+- ```jwe rm <file-name>```
 
 ### Version Command
  - Does not have any arguments
 
 ### Explorer Command
-- ```reflesh```
+- ```jwe expl <command>```
+  - ```reflesh```
+
+### Process Command
+- ```jwe proc show <option>```
+  - ```all```
+- ```jwe proc kill <pid>```

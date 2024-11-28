@@ -2,6 +2,7 @@ use open;
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::ptr;
 use std::ptr::null_mut;
 use winapi::shared::lmcons::NET_API_STATUS;
@@ -9,19 +10,23 @@ use winapi::shared::minwindef::{DWORD, HINSTANCE, LPBYTE};
 use winapi::shared::ntdef::PWSTR;
 use winapi::shared::sddl::ConvertSidToStringSidW;
 use winapi::um::handleapi::CloseHandle;
+use winapi::um::knownfolders::FOLDERID_LocalAppDataLow;
 use winapi::um::libloaderapi::GetModuleFileNameW;
 use winapi::um::lmaccess::{NetUserEnum, USER_INFO_0};
 use winapi::um::lmapibuf::NetApiBufferFree;
 use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcess, OpenProcessToken};
-use winapi::um::shlobj::{SHGetFolderPathW, CSIDL_APPDATA, CSIDL_LOCAL_APPDATA};
+use winapi::um::shlobj::{
+    SHGetFolderPathW, SHGetKnownFolderPath, CSIDL_APPDATA, CSIDL_LOCAL_APPDATA,
+};
 use winapi::um::winbase::LocalFree;
 use winapi::um::winbase::LookupAccountNameW;
 use winapi::um::winnt::{
     TokenUser, HANDLE, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ, PSID, SID_NAME_USE, TOKEN_QUERY,
 };
-use windows_sys::Win32::System::ProcessStatus::GetModuleBaseNameW;
+use windows::Win32::System::Com::CoTaskMemFree;
 
 use crate::libs::logger_control;
+use crate::VERISON;
 
 #[link(name = "win_sys_api", kind = "static")]
 extern "C" {
@@ -114,6 +119,46 @@ pub fn get_local_appdata() -> Option<PathBuf> {
         let result = SHGetFolderPathW(
             ptr::null_mut(),
             CSIDL_LOCAL_APPDATA,
+            ptr::null_mut(),
+            0,
+            path.as_mut_ptr() as PWSTR,
+        );
+
+        if result >= 0 {
+            let len = path.iter().take_while(|&&c| c != 0).count();
+            let os_str: OsString = std::os::windows::ffi::OsStringExt::from_wide(&path[..len]);
+            Some(PathBuf::from(os_str))
+        } else {
+            None
+        }
+    }
+}
+
+pub fn get_local_low() -> Option<PathBuf> {
+    unsafe {
+        let mut path_ptr: PWSTR = ptr::null_mut();
+        let result =
+            SHGetKnownFolderPath(&FOLDERID_LocalAppDataLow, 0, ptr::null_mut(), &mut path_ptr);
+
+        if result >= 0 {
+            let len = (0..).take_while(|&i| *path_ptr.add(i) != 0).count();
+            let path_slice = std::slice::from_raw_parts(path_ptr, len);
+            let os_str: OsString = std::os::windows::ffi::OsStringExt::from_wide(path_slice);
+            CoTaskMemFree(Some(path_ptr as *const _));
+            Some(PathBuf::from(os_str))
+        } else {
+            None
+        }
+    }
+}
+
+pub fn get_roaming() -> Option<PathBuf> {
+    let mut path: [u16; 260] = [0; 260];
+
+    unsafe {
+        let result = SHGetFolderPathW(
+            ptr::null_mut(),
+            CSIDL_APPDATA,
             ptr::null_mut(),
             0,
             path.as_mut_ptr() as PWSTR,
@@ -224,5 +269,64 @@ pub fn show_all_pid() {
             return;
         }
         free_pids(pids);
+    }
+}
+
+pub fn open_environment_variables_window() -> Result<(), Box<dyn std::error::Error>> {
+    if cfg!(target_os = "windows") {
+        let result = Command::new("SystemPropertiesAdvanced.exe")
+            .arg("/c")
+            .spawn();
+
+        match result {
+            Ok(_) => {
+                logger_control::log(
+                    "Opened environment variables window",
+                    logger_control::LogLevel::INFO,
+                );
+                Ok(())
+            }
+            Err(e) => {
+                eprintln!("Failed to open environment variables window: {}", e);
+                logger_control::log(
+                    &format!("Failed to open environment variables window: {}", e),
+                    logger_control::LogLevel::CRITICAL,
+                );
+                Err(e.into())
+            }
+        }
+    } else {
+        eprintln!("Failed to open environment variables window: Unsupported OS");
+        logger_control::log(
+            "Failed to open environment variables window: Unsupported OS",
+            logger_control::LogLevel::CRITICAL,
+        );
+        Err("Unsupported OS".into())
+    }
+}
+
+pub fn kill_pid(pid: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let result = Command::new("taskkill")
+        .arg("/F")
+        .arg("/PID")
+        .arg(pid.to_string())
+        .spawn();
+
+    match result {
+        Ok(_) => {
+            logger_control::log(
+                &format!("Killed PID: {}", pid),
+                logger_control::LogLevel::INFO,
+            );
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Failed to kill PID: {}", e);
+            logger_control::log(
+                &format!("Failed to kill PID: {}", e),
+                logger_control::LogLevel::CRITICAL,
+            );
+            Err(e.into())
+        }
     }
 }

@@ -21,41 +21,59 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Commands {
-    #[command(
-        about = "Show command line information",
-        long_about = "Show command line information"
-    )]
+    #[command(about = "cpu information", long_about = "cpu information")]
     CPU {
         #[command(subcommand)]
         action: Option<CPUCommands>,
     },
+    #[command(about = "memory information", long_about = "memory information")]
     Mem {
         #[command(subcommand)]
         action: Option<MemShowCommands>,
     },
+    #[command(
+        about = "List files in the current directory",
+        long_about = "List files in the current directory"
+    )]
     Ls {
         #[arg(long)]
         action: bool,
     },
+    #[command(about = "Browser information", long_about = "Browser information")]
     Browser {
         #[command(subcommand)]
         action: Option<BrowserCommands>,
     },
+    #[command(
+        about = "Open a file or app or windows system",
+        long_about = "Open a file or app or windows system"
+    )]
     Open {
         #[command(subcommand)]
         action: Option<OpenCommands>,
     },
-    Remove {
+    #[command(about = "Remove a file", long_about = "Remove a file")]
+    Rm {
         #[arg(short, long, help = "Remove a file")]
         remove: Option<String>,
     },
+    #[command(about = "Update the program", long_about = "Update the program")]
     Update {
         #[arg(short, long, help = "Update the program")]
         update: bool,
     },
-    explorer {
-        #[arg(short, long, help = "Open explorer")]
+    #[command(
+        about = "control windows file explorer",
+        long_about = "control windows file explorer"
+    )]
+    Expl {
+        #[arg(short, long, help = "reflesh explorer")]
         reflesh: bool,
+    },
+    #[command(about = "Process control", long_about = "Process control")]
+    Proc {
+        #[command(subcommand)]
+        action: Option<ProcCommands>,
     },
 
     Version,
@@ -71,8 +89,6 @@ enum CPUCommands {
         usage: bool,
         #[arg(short, long, help = "Show CPU temperature information")]
         frequency: bool,
-        #[arg(long, help = "all pid")]
-        all_pid: bool,
     },
 }
 
@@ -116,7 +132,7 @@ enum BrowserCommands {
         query: String,
     },
     #[command(about = "Web Favorite", long_about = "Web Favorite")]
-    Favorite {
+    Fav {
         #[arg(long, short, help = "Add a favorite URL")]
         add_favorite: bool,
         #[arg(long, short, help = "Remove a favorite URL")]
@@ -136,10 +152,40 @@ enum OpenCommands {
         #[arg(long, help = "Open Appdata")]
         user: Option<String>,
     },
+    #[command(about = "Open Local Appdata", long_about = "Open Local Appdata")]
     Local,
-    TaskManager,
+    #[command(about = "Open LocalLow", long_about = "Open LocalLow")]
+    LocalLow,
+    #[command(about = "Open Roaming", long_about = "Open Roaming")]
+    Roaming,
+    #[command(about = "Open Task Manager", long_about = "Open Task Manager")]
+    TaskM,
+    #[command(
+        about = "Open Environment Variables",
+        long_about = "Open Environment Variables"
+    )]
+    Env,
+    #[command(
+        about = "Open current directory",
+        long_about = "Open current directory"
+    )]
     There,
+    #[command(about = "Open all SIDs", long_about = "Open all SIDs")]
     AllSid,
+}
+
+#[derive(Subcommand)]
+enum ProcCommands {
+    #[command(about = "Show all processes", long_about = "Show all processes")]
+    Show {
+        #[arg(short, long, help = "Show all processes")]
+        all: bool,
+    },
+    #[command(about = "Kill a process", long_about = "Kill a process")]
+    Kill {
+        #[arg(short, long, help = "Kill a process")]
+        pid: u32,
+    },
 }
 fn main() {
     let args = Args::parse();
@@ -175,7 +221,6 @@ fn windows_cmd(args: Args) {
                     all,
                     usage,
                     frequency,
-                    all_pid,
                 }) => {
                     if *all {
                         for cpu in sys.cpus() {
@@ -203,9 +248,6 @@ fn windows_cmd(args: Args) {
                                 logger_control::LogLevel::INFO,
                             );
                         }
-                    }
-                    if *all_pid {
-                        win_api::show_all_pid();
                     }
                 }
                 None => {
@@ -389,7 +431,7 @@ fn windows_cmd(args: Args) {
                     );
                 }
 
-                Some(BrowserCommands::Favorite {
+                Some(BrowserCommands::Fav {
                     add_favorite,
                     remove_favorite,
                     list_favorite,
@@ -566,7 +608,45 @@ fn windows_cmd(args: Args) {
                     }
                 }
 
-                Some(OpenCommands::TaskManager) => {
+                Some(OpenCommands::LocalLow) => {
+                    let local_low = win_api::get_local_low();
+                    if let Some(local_low) = local_low {
+                        if let Err(e) = win_api::open_explorer(local_low) {
+                            println!("Failed to open LocalLow: {}", e);
+                            logger_control::log(
+                                &format!("Failed to open LocalLow: {}", e),
+                                logger_control::LogLevel::ERROR,
+                            );
+                        }
+                    } else {
+                        println!("Failed to get LocalLow directory");
+                        logger_control::log(
+                            "Failed to get LocalLow directory",
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
+                Some(OpenCommands::Roaming) => {
+                    let roaming = win_api::get_roaming();
+                    if let Some(roaming) = roaming {
+                        if let Err(e) = win_api::open_explorer(roaming) {
+                            println!("Failed to open Roaming: {}", e);
+                            logger_control::log(
+                                &format!("Failed to open Roaming: {}", e),
+                                logger_control::LogLevel::ERROR,
+                            );
+                        }
+                    } else {
+                        println!("Failed to get Roaming directory");
+                        logger_control::log(
+                            "Failed to get Roaming directory",
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
+                Some(OpenCommands::TaskM) => {
                     if let Err(e) = win_api::open_task_manager() {
                         println!("Failed to open Task Manager: {}", e);
                         logger_control::log(
@@ -574,6 +654,20 @@ fn windows_cmd(args: Args) {
                             logger_control::LogLevel::ERROR,
                         );
                     }
+                }
+
+                Some(OpenCommands::Env) => {
+                    if let Err(e) = win_api::open_environment_variables_window() {
+                        println!("Failed to open Environment Variables: {}", e);
+                        logger_control::log(
+                            &format!("Failed to open Environment Variables: {}", e),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                    logger_control::log(
+                        "Opened Environment Variables",
+                        logger_control::LogLevel::INFO,
+                    );
                 }
 
                 Some(OpenCommands::There) => {
@@ -612,7 +706,7 @@ fn windows_cmd(args: Args) {
         }
 
         // remove command
-        Some(Commands::Remove { remove }) => {
+        Some(Commands::Rm { remove }) => {
             if let Some(remove) = remove {
                 if let Err(e) = fs::remove_file(remove) {
                     println!("Failed to remove file: {}", e);
@@ -642,12 +736,41 @@ fn windows_cmd(args: Args) {
         }
 
         // explorer command
-        Some(Commands::explorer { reflesh }) => {
+        Some(Commands::Expl { reflesh }) => {
             if *reflesh {
                 let _ = win_api::refresh_exprorer();
                 logger_control::log("Explorer reflesh called", logger_control::LogLevel::INFO);
             }
         }
+
+        // proc command
+        Some(Commands::Proc { action }) => match action {
+            None => {
+                println!("No action specified for Proc command");
+                logger_control::log(
+                    "No action specified for Proc command",
+                    logger_control::LogLevel::ERROR,
+                );
+            }
+            Some(ProcCommands::Show { all }) => {
+                if *all {
+                    win_api::show_all_pid();
+                    logger_control::log(
+                        "CPU all_pid all_pid called",
+                        logger_control::LogLevel::INFO,
+                    );
+                }
+            }
+            Some(ProcCommands::Kill { pid }) => {
+                if let Err(e) = win_api::kill_pid(*pid) {
+                    println!("Failed to kill process: {}", e);
+                    logger_control::log(
+                        &format!("Failed to kill process: {}", e),
+                        logger_control::LogLevel::ERROR,
+                    );
+                }
+            }
+        },
     }
 }
 
