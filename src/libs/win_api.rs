@@ -219,6 +219,14 @@ pub fn get_appdata() -> Option<PathBuf> {
     }
 }
 
+pub fn get_app_folder() -> Option<PathBuf> {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let launcher_loc = local_data.join("johma_windows_enhanced");
+
+    return Some(launcher_loc);
+}
+
 pub fn open_explorer<P>(path: P) -> Result<(), Box<dyn std::error::Error>>
 where
     P: AsRef<Path>,
@@ -324,6 +332,28 @@ pub fn kill_pid(pid: u32) -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Failed to kill PID: {}", e);
             logger_control::log(
                 &format!("Failed to kill PID: {}", e),
+                logger_control::LogLevel::CRITICAL,
+            );
+            Err(e.into())
+        }
+    }
+}
+
+pub fn run_launcher(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let result = Command::new(path).spawn();
+
+    match result {
+        Ok(_) => {
+            logger_control::log(
+                &format!("Ran launcher: {}", path),
+                logger_control::LogLevel::INFO,
+            );
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Failed to run launcher: {}", e);
+            logger_control::log(
+                &format!("Failed to run launcher: {}", e),
                 logger_control::LogLevel::CRITICAL,
             );
             Err(e.into())

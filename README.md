@@ -52,6 +52,7 @@ These commands are incomplete
   - ```Local```
   - ```local-low```
   - ```roaming```
+  - ```johma```
   - ```There```
   - ```all-sid```
 
@@ -67,5 +68,12 @@ These commands are incomplete
 
 ### Process Command
 - ```jwe proc show <option>```
-  - ```all```
+  - all
 - ```jwe proc kill <pid>```
+
+### Launcher Command
+- ```jwe lc show <option>```
+  - --all(short -a)
+- ```jwe lc add```
+- ```jwe lc remove```
+- ```jwe lc run (Launcher name)```

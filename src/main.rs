@@ -75,7 +75,13 @@ enum Commands {
         #[command(subcommand)]
         action: Option<ProcCommands>,
     },
+    #[command(about = "Launcher Control", long_about = "Launcher Control")]
+    Lc {
+        #[command(subcommand)]
+        action: Option<LcCommands>,
+    },
 
+    #[command(about = "Show version", long_about = "Show version")]
     Version,
 }
 
@@ -160,6 +166,8 @@ enum OpenCommands {
     Roaming,
     #[command(about = "Open Task Manager", long_about = "Open Task Manager")]
     TaskM,
+    #[command(about = "Open this appfolder", long_about = "Open this appfolder")]
+    Johma,
     #[command(
         about = "Open Environment Variables",
         long_about = "Open Environment Variables"
@@ -186,6 +194,21 @@ enum ProcCommands {
         #[arg(short, long, help = "Kill a process")]
         pid: u32,
     },
+}
+
+#[derive(Subcommand)]
+enum LcCommands {
+    #[command(about = "Show all launchers", long_about = "Show all launchers")]
+    Show {
+        #[arg(short, long, help = "Show all launchers")]
+        all: bool,
+    },
+    #[command(about = "Add a launcher", long_about = "Add a launcher")]
+    Add,
+    #[command(about = "Remove a launcher", long_about = "Remove a launcher")]
+    Remove,
+    #[command(about = "Run a launcher", long_about = "Run a launcher")]
+    Run { name: String },
 }
 fn main() {
     let args = Args::parse();
@@ -646,6 +669,25 @@ fn windows_cmd(args: Args) {
                     }
                 }
 
+                Some(OpenCommands::Johma) => {
+                    let app_folder = win_api::get_app_folder();
+                    if let Some(app_folder) = app_folder {
+                        if let Err(e) = win_api::open_explorer(app_folder) {
+                            println!("Failed to open App Folder: {}", e);
+                            logger_control::log(
+                                &format!("Failed to open App Folder: {}", e),
+                                logger_control::LogLevel::ERROR,
+                            );
+                        }
+                    } else {
+                        println!("Failed to get App Folder directory");
+                        logger_control::log(
+                            "Failed to get App Folder directory",
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+
                 Some(OpenCommands::TaskM) => {
                     if let Err(e) = win_api::open_task_manager() {
                         println!("Failed to open Task Manager: {}", e);
@@ -766,6 +808,127 @@ fn windows_cmd(args: Args) {
                     println!("Failed to kill process: {}", e);
                     logger_control::log(
                         &format!("Failed to kill process: {}", e),
+                        logger_control::LogLevel::ERROR,
+                    );
+                }
+            }
+        },
+
+        // lc command
+        Some(Commands::Lc { action }) => match action {
+            None => {
+                println!("No action specified for Lc command");
+                logger_control::log(
+                    "No action specified for Lc command",
+                    logger_control::LogLevel::ERROR,
+                );
+            }
+            Some(LcCommands::Show { all }) => {
+                if *all {
+                    data_controller::init_launcher().expect("Failed to init launcher");
+
+                    let launchers = data_controller::read_launcher().launchers;
+                    let mut keys: Vec<String> = Vec::new();
+                    for key in launchers.keys() {
+                        keys.push(key.to_string());
+                    }
+                    let mut builder = Builder::default();
+                    builder.push_record(keys);
+                    let mut table = builder.build();
+                    table.with(Style::ascii_rounded());
+                    println!("{}", table.to_string());
+                    logger_control::log(
+                        "Launcher all_pid all_pid called",
+                        logger_control::LogLevel::INFO,
+                    );
+                }
+            }
+            Some(LcCommands::Add) => {
+                data_controller::init_launcher().expect("Failed to init launcher");
+                let mut launchers = data_controller::read_launcher().launchers;
+
+                println!("Please enter the name of the launcher");
+                let mut name = String::new();
+                print!("Enter the name: ");
+                io::stdout().flush().unwrap();
+                io::stdin()
+                    .read_line(&mut name)
+                    .expect("Failed to read line");
+                let name = name.trim();
+
+                println!("Please enter the path of the launcher");
+                let mut path = String::new();
+                print!("Enter the path: ");
+                io::stdout().flush().unwrap();
+                io::stdin()
+                    .read_line(&mut path)
+                    .expect("Failed to read line");
+                let path = path.trim();
+
+                match launchers.insert(name.to_string(), path.to_string()) {
+                    Some(_) => {
+                        println!("Launcher {} already exists", name);
+
+                        let message = format!("Launcher {} already exists", name);
+                        logger_control::log(&message.to_string(), logger_control::LogLevel::ERROR);
+                    }
+                    None => {
+                        println!("Launcher {} added", name);
+                    }
+                }
+                data_controller::write_launcher(launchers);
+                logger_control::log(
+                    &format!("Launcher add add called {}", name),
+                    logger_control::LogLevel::INFO,
+                );
+            }
+            Some(LcCommands::Remove) => {
+                data_controller::init_launcher().expect("Failed to init launcher");
+
+                let mut launchers = data_controller::read_launcher().launchers;
+                println!("Please enter the name of the launcher you would like to remove");
+                let mut name = String::new();
+                print!("Enter the name: ");
+                io::stdout().flush().unwrap();
+                io::stdin()
+                    .read_line(&mut name)
+                    .expect("Failed to read line");
+                let name = name.trim();
+                match launchers.remove(name) {
+                    Some(_) => {
+                        println!("Launcher removed");
+                    }
+                    None => {
+                        println!("Launcher not found");
+                        logger_control::log(
+                            &format!("Launcher not found {}", name),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                }
+                data_controller::write_launcher(launchers);
+                logger_control::log(
+                    &format!("Launcher remove remove called {}", name),
+                    logger_control::LogLevel::INFO,
+                );
+            }
+
+            Some(LcCommands::Run { name }) => {
+                data_controller::init_launcher().expect("Failed to init launcher");
+
+                let launchers = data_controller::read_launcher().launchers;
+                if let Some(launcher_path) = launchers.get(name) {
+                    if let Err(e) = win_api::run_launcher(launcher_path) {
+                        println!("Failed to run launcher: {}", e);
+                        logger_control::log(
+                            &format!("Failed to run launcher: {}", e),
+                            logger_control::LogLevel::ERROR,
+                        );
+                    }
+                } else {
+                    println!("Launcher not found");
+                    logger_control::log(
+                        &format!("Launcher not found {}", name),
                         logger_control::LogLevel::ERROR,
                     );
                 }

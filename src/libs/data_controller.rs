@@ -21,6 +21,11 @@ pub struct Favorites {
     pub favorites: HashMap<String, String>,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct Launcher {
+    pub launchers: HashMap<String, String>,
+}
+
 pub fn read_favorites() -> Favorites {
     let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
 
@@ -71,6 +76,65 @@ pub fn write_favorites(favorites: Favorites) {
     fs::write(favorites_loc, toml).expect("Failed to write favorites file");
 
     logger_control::log("Write favorites file", logger_control::LogLevel::INFO);
+}
+
+pub fn init_launcher() -> Result<String, Box<dyn std::error::Error>> {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let launcher_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("launcher.toml");
+
+    if !launcher_loc.exists() {
+        let launchers = Launcher {
+            launchers: HashMap::new(),
+        };
+
+        let toml = toml::to_string(&launchers).expect("Failed to serialize launchers");
+
+        fs::write(launcher_loc, toml).expect("Failed to write launchers file");
+
+        logger_control::log("Create new launchers file", logger_control::LogLevel::INFO);
+
+        return Ok("Create new launcher file".to_string());
+    }
+
+    logger_control::log(
+        "Launchers file already exists",
+        logger_control::LogLevel::INFO,
+    );
+
+    Ok("Launcher file already exists".to_string())
+}
+
+pub fn read_launcher() -> Launcher {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let launcher_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("launcher.toml");
+
+    let contents = fs::read_to_string(launcher_loc).expect("Something went wrong reading the file");
+
+    toml::from_str(&contents).expect("Failed to parse launchers file")
+}
+
+pub fn write_launcher(launchers: HashMap<String, String>) {
+    let local_data = dirs::data_local_dir().expect("Failed to get local app data directory");
+
+    let launcher_loc = local_data
+        .join("johma_windows_enhanced")
+        .join("launcher.toml");
+
+    let launchers_data = Launcher {
+        launchers: launchers,
+    };
+
+    let toml = toml::to_string(&launchers_data).expect("Failed to serialize launchers");
+
+    fs::write(launcher_loc, toml).expect("Failed to write launchers file");
+
+    logger_control::log("Write launchers file", logger_control::LogLevel::INFO);
 }
 
 pub fn read_settings() -> Settings {
