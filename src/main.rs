@@ -8,7 +8,10 @@ use std::{
     io::{self, Write},
 };
 use sysinfo::{Components, Disks, Networks, System};
-use tabled::{builder::Builder, settings::Style};
+use tabled::{
+    builder::Builder,
+    settings::{object::Columns, object::Rows, Alignment, Modify, Padding, Style, Width},
+};
 
 // プリプロセッサー
 const VERISON: &str = env!("CARGO_PKG_VERSION");
@@ -340,7 +343,6 @@ fn windows_cmd(args: Args) {
         // ls command
         Some(Commands::Ls { action }) => match fs::read_dir(".") {
             Ok(entries) => {
-                let mut builder = Builder::default();
                 let mut dir_files: Vec<String> = Vec::new();
                 for entry in entries {
                     if let Ok(entry) = entry {
@@ -352,9 +354,24 @@ fn windows_cmd(args: Args) {
                         }
                     }
                 }
-                builder.push_record(dir_files);
+                dir_files.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                const ITEMS_PER_ROW: usize = 3;
+                let chunks: Vec<Vec<String>> = dir_files
+                    .chunks(ITEMS_PER_ROW)
+                    .map(|x| x.to_vec())
+                    .collect();
+                let mut builder = Builder::default();
+
+                for chunk in chunks {
+                    builder.push_record(chunk);
+                }
                 let mut table = builder.build();
-                table.with(Style::ascii_rounded());
+                table
+                    .with(Style::ascii_rounded())
+                    .with(Padding::new(1, 1, 0, 0))
+                    .with(Alignment::left())
+                    .with(Modify::new(Columns::new(..)).with(Width::wrap(30)))
+                    .with(Modify::new(Rows::new(..)).with(Padding::new(0, 1, 0, 0)));
                 println!("{}", table.to_string());
                 logger_control::log("Ls command called", logger_control::LogLevel::INFO);
             }
@@ -533,10 +550,22 @@ fn windows_cmd(args: Args) {
                         for key in favorites_map.keys() {
                             keys.push(key.to_string());
                         }
+                        keys.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                        const ITEMS_PER_ROW: usize = 3;
+                        let chunks: Vec<Vec<String>> =
+                            keys.chunks(ITEMS_PER_ROW).map(|x| x.to_vec()).collect();
                         let mut builder = Builder::default();
-                        builder.push_record(keys);
+
+                        for chunk in chunks {
+                            builder.push_record(chunk);
+                        }
                         let mut table = builder.build();
-                        table.with(Style::ascii_rounded());
+                        table
+                            .with(Style::ascii_rounded())
+                            .with(Padding::new(1, 1, 0, 0))
+                            .with(Alignment::left())
+                            .with(Modify::new(Columns::new(..)).with(Width::wrap(30)))
+                            .with(Modify::new(Rows::new(..)).with(Padding::new(0, 1, 0, 0)));
                         println!("{}", table.to_string());
                         logger_control::log(
                             "Browser favorite list_favorite called",
@@ -832,10 +861,22 @@ fn windows_cmd(args: Args) {
                     for key in launchers.keys() {
                         keys.push(key.to_string());
                     }
+                    keys.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                    const ITEMS_PER_ROW: usize = 3;
+                    let chunks: Vec<Vec<String>> =
+                        keys.chunks(ITEMS_PER_ROW).map(|x| x.to_vec()).collect();
                     let mut builder = Builder::default();
-                    builder.push_record(keys);
+
+                    for chunk in chunks {
+                        builder.push_record(chunk);
+                    }
                     let mut table = builder.build();
-                    table.with(Style::ascii_rounded());
+                    table
+                        .with(Style::ascii_rounded())
+                        .with(Padding::new(1, 1, 0, 0))
+                        .with(Alignment::left())
+                        .with(Modify::new(Columns::new(..)).with(Width::wrap(30)))
+                        .with(Modify::new(Rows::new(..)).with(Padding::new(0, 1, 0, 0)));
                     println!("{}", table.to_string());
                     logger_control::log(
                         "Launcher all_pid all_pid called",
